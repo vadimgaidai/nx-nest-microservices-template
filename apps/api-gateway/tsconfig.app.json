@@ -1,13 +1,12 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "../../libs/common/configs/tsconfig/nest.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
-    "module": "commonjs",
-    "types": ["node"],
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "target": "es2021",
-    "moduleResolution": "node"
+    "baseUrl": ".",
+    "paths": {
+      "@nx-microservices/contracts": ["../../libs/contracts/src/index.ts"],
+      "@nx-microservices/common": ["../../libs/common/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts"]
 }

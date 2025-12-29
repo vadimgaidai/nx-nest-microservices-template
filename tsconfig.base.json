@@ -1,20 +1,11 @@
 {
-  "compileOnSave": false,
+  "extends": "./libs/common/configs/tsconfig/base.json",
   "compilerOptions": {
     "rootDir": ".",
-    "sourceMap": true,
-    "declaration": false,
-    "moduleResolution": "node",
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "importHelpers": true,
-    "target": "ES2021",
-    "module": "CommonJS",
-    "lib": ["ES2021"],
-    "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
     "baseUrl": ".",
-    "paths": {}
-  },
-  "exclude": ["node_modules", "tmp"]
+    "paths": {
+      "@nx-microservices/contracts": ["libs/contracts/src/index.ts"],
+      "@nx-microservices/common": ["libs/common/src/index.ts"]
+    }
+  }
 }

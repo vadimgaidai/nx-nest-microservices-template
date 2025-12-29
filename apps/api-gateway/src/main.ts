@@ -13,7 +13,7 @@ config({ path: join(process.cwd(), '.env') });
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const globalPrefix = process.env.API_GLOBAL_PREFIX;
+  const globalPrefix = process.env.API_GLOBAL_PREFIX || 'api';
   app.setGlobalPrefix(globalPrefix);
   const port = Number(process.env.API_GATEWAY_PORT || 3000);
   await app.listen(port);
