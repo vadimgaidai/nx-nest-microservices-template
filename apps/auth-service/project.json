@@ -69,28 +69,28 @@
     "migration:generate": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsx ./node_modules/typeorm/cli.js migration:generate -d apps/auth-service/src/data-source.ts apps/auth-service/src/migrations/{args.name}",
+        "command": "pnpm typeorm:cli migration:generate -d apps/auth-service/src/data-source.ts apps/auth-service/src/migrations/{args.name}",
         "cwd": "{workspaceRoot}"
       }
     },
     "migration:create": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsx ./node_modules/typeorm/cli.js migration:create apps/auth-service/src/migrations/{args.name}",
+        "command": "pnpm typeorm:cli migration:create apps/auth-service/src/migrations/{args.name}",
         "cwd": "{workspaceRoot}"
       }
     },
     "migration:run": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsx ./node_modules/typeorm/cli.js migration:run -d apps/auth-service/src/data-source.ts",
+        "command": "pnpm typeorm:cli migration:run -d apps/auth-service/src/data-source.ts",
         "cwd": "{workspaceRoot}"
       }
     },
     "migration:revert": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsx ./node_modules/typeorm/cli.js migration:revert -d apps/auth-service/src/data-source.ts",
+        "command": "pnpm typeorm:cli migration:revert -d apps/auth-service/src/data-source.ts",
         "cwd": "{workspaceRoot}"
       }
     }

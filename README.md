@@ -28,10 +28,16 @@ USERS_DB_PORT=5433
 AUTH_DB_PORT=5433
 ```
 
-### Start Database
+### Start Database and Run Migrations
 
 ```bash
-docker compose up -d
+# Complete setup (start DB + initialize + run migrations)
+pnpm db:setup
+
+# Or step by step:
+pnpm db:up              # Start database
+pnpm db:init            # Initialize databases (users_db, auth_db)
+pnpm migrate:run        # Run all migrations
 ```
 
 The database will be exposed on the port specified by `POSTGRES_EXPOSED_PORT` (default: 5432).
@@ -42,14 +48,23 @@ Verify database is running:
 docker compose ps
 ```
 
-### Run Migrations
+### Individual Migration Commands
 
 ```bash
-# Users Service
-nx run users-service:migration:run
+# Run migrations per service
+pnpm migrate:users:run
+pnpm migrate:auth:run
 
-# Auth Service
-nx run auth-service:migration:run
+# Or run all migrations
+pnpm migrate:run
+
+# Generate migrations
+pnpm migrate:users:generate -- --name=MigrationName
+pnpm migrate:auth:generate -- --name=MigrationName
+
+# Revert migrations
+pnpm migrate:users:revert
+pnpm migrate:auth:revert
 ```
 
 ## Development
@@ -84,45 +99,72 @@ pnpm format:check
 pnpm format
 ```
 
-### Serve
+### Serve (Development Mode)
 
 ```bash
-# Start api-gateway
+# Using convenience scripts
+pnpm dev:gateway    # Start API Gateway
+pnpm dev:users      # Start Users Service
+pnpm dev:auth       # Start Auth Service
+
+# Or using Nx directly
 nx serve api-gateway
-
-# Start users-service
 nx serve users-service
-
-# Start auth-service
 nx serve auth-service
 ```
 
-## Database Migrations
+**Default Endpoints:**
 
-### Users Service
+- API Gateway: `http://localhost:3000/api`
+- Users Service: `http://localhost:3001/api`
+- Auth Service: `http://localhost:3002/api`
+
+**Configuration:**
+
+- Ports: Customize via `API_GATEWAY_PORT`, `USERS_SERVICE_PORT`, `AUTH_SERVICE_PORT` in `.env`
+- Global prefix: Customize via `API_GLOBAL_PREFIX` in `.env` (default: `api`)
+
+## Available Scripts
+
+### Database Management
 
 ```bash
-# Generate migration
-nx run users-service:migration:generate --name=MigrationName
+pnpm db:up          # Start database
+pnpm db:down        # Stop database
+pnpm db:reset       # Reset database (destroys data)
+pnpm db:init        # Initialize databases (idempotent)
+pnpm db:setup       # Complete setup: up + init + migrate
+```
 
+### Migration Management
+
+```bash
 # Run migrations
-nx run users-service:migration:run
+pnpm migrate:run              # All services
+pnpm migrate:users:run        # Users service only
+pnpm migrate:auth:run         # Auth service only
 
-# Revert last migration
+# Revert migrations
+pnpm migrate:revert           # All services (reverse order)
+pnpm migrate:users:revert     # Users service only
+pnpm migrate:auth:revert      # Auth service only
+
+# Generate migrations (requires DB connection)
+pnpm migrate:users:generate -- --name=MigrationName
+pnpm migrate:auth:generate -- --name=MigrationName
+
+# Or using Nx directly
+nx run users-service:migration:generate --name=MigrationName
+nx run users-service:migration:run
 nx run users-service:migration:revert
 ```
 
-### Auth Service
+### Development
 
 ```bash
-# Generate migration
-nx run auth-service:migration:generate --name=MigrationName
-
-# Run migrations
-nx run auth-service:migration:run
-
-# Revert last migration
-nx run auth-service:migration:revert
+pnpm dev:gateway    # Start API Gateway
+pnpm dev:users      # Start Users Service
+pnpm dev:auth       # Start Auth Service
 ```
 
 ## Project Structure
@@ -140,10 +182,20 @@ docs/
 
 ## Environment Variables
 
-See `.env` file for database configuration:
+See `.env.example` and `.env` for configuration:
 
-- `USERS_DB_*` - Users service database config
-- `AUTH_DB_*` - Auth service database config
+**Service Configuration:**
+
+- `API_GLOBAL_PREFIX` - Global API prefix for all services (default: `api`)
+- `API_GATEWAY_PORT` - API Gateway HTTP port (default: 3000)
+- `USERS_SERVICE_PORT` - Users Service HTTP port (default: 3001)
+- `AUTH_SERVICE_PORT` - Auth Service HTTP port (default: 3002)
+
+**Database Configuration:**
+
+- `POSTGRES_EXPOSED_PORT` - Docker Postgres port (default: 5432)
+- `USERS_DB_*` - Users service database connection
+- `AUTH_DB_*` - Auth service database connection
 
 ## Stage 1 - Complete ✅
 

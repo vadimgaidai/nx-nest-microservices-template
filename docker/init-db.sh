@@ -1,12 +1,23 @@
 #!/bin/bash
 set -e
 
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    SELECT 'CREATE DATABASE users_db'
-    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'users_db')\gexec
+# Collect all database names from *_DB_NAME environment variables
+DB_NAMES=$(printenv | grep '_DB_NAME=' | cut -d= -f2 | sort -u)
 
-    SELECT 'CREATE DATABASE auth_db'
-    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'auth_db')\gexec
-EOSQL
+if [ -z "$DB_NAMES" ]; then
+  echo "⚠ No *_DB_NAME environment variables found"
+  exit 0
+fi
 
-echo "✓ Databases initialized (users_db, auth_db)"
+# Build SQL commands for each database
+SQL_COMMANDS=""
+for DB_NAME in $DB_NAMES; do
+  SQL_COMMANDS+="SELECT 'CREATE DATABASE ${DB_NAME}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec\n"
+done
+
+# Execute all CREATE DATABASE commands
+echo -e "$SQL_COMMANDS" | psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"
+
+# Print summary
+DB_LIST=$(echo "$DB_NAMES" | tr '\n' ', ' | sed 's/, $//')
+echo "✓ Databases initialized: $DB_LIST"

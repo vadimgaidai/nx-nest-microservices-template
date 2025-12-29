@@ -24,8 +24,23 @@ docker compose up -d
 The docker-compose setup will:
 
 - Expose Postgres on port `${POSTGRES_EXPOSED_PORT}` (default: 5432)
-- Auto-create `users_db` and `auth_db` databases (idempotent)
+- Auto-create service databases based on `*_DB_NAME` env vars (idempotent)
 - No tables are created - use migrations instead
+
+### Initialize Service Databases
+
+The `docker/init-db.sh` script automatically creates databases for all services by:
+
+1. Reading all environment variables matching `*_DB_NAME` from `.env`
+2. Creating each database if it doesn't exist (idempotent)
+
+**Current databases:** `users_db`, `auth_db`
+
+**Adding a new service database:**
+
+1. Add `<SERVICE>_DB_NAME=<dbname>` to `.env`
+2. Run `pnpm db:init` or restart containers
+3. No script changes needed
 
 ### Check Status
 
@@ -48,12 +63,14 @@ docker compose down -v
 docker compose up -d
 ```
 
-## Databases
+## Service Databases
 
-- **users_db**: Used by users-service
-- **auth_db**: Used by auth-service
+Databases are automatically discovered and created from environment variables:
 
-Both databases are automatically created on first startup via `docker/init-db.sh` (idempotent)
+- **users_db**: Used by users-service (via `USERS_DB_NAME`)
+- **auth_db**: Used by auth-service (via `AUTH_DB_NAME`)
+
+All databases matching `*_DB_NAME` in `.env` are created automatically on first startup or when running `pnpm db:init`.
 
 ## Running Migrations
 
@@ -81,4 +98,62 @@ nx run auth-service:migration:run
 
 # Revert last migration
 nx run auth-service:migration:revert
+```
+
+## Convenience Scripts
+
+For better developer UX, the root `package.json` provides convenient aliases:
+
+### Database Management
+
+```bash
+# Start database
+pnpm db:up
+
+# Stop database
+pnpm db:down
+
+# Reset database (WARNING: destroys all data)
+pnpm db:reset
+
+# Initialize databases (idempotent)
+pnpm db:init
+
+# Complete setup: up + init + migrate
+pnpm db:setup
+```
+
+### Run Services
+
+```bash
+# Run individual services
+pnpm dev:gateway
+pnpm dev:users
+pnpm dev:auth
+```
+
+### Migrations
+
+```bash
+# Run migrations for specific service
+pnpm migrate:users:run
+pnpm migrate:auth:run
+
+# Run all migrations (users then auth)
+pnpm migrate:run
+
+# Revert migrations
+pnpm migrate:users:revert
+pnpm migrate:auth:revert
+pnpm migrate:revert  # Reverts auth then users
+
+# Generate migrations (requires -- to pass args)
+pnpm migrate:users:generate -- --name=InitUsers
+pnpm migrate:auth:generate -- --name=InitAuth
+```
+
+**Note:** When using `generate` scripts, you must pass the `--name` argument with `--` separator:
+
+```bash
+pnpm migrate:users:generate -- --name=AddUserEmail
 ```
