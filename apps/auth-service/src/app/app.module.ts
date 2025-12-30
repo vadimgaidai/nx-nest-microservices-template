@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'node:path';
+import { RedisModule } from '@nx-microservices/redis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RefreshToken } from '../entities/refresh-token.entity';
@@ -12,6 +13,7 @@ import { RefreshToken } from '../entities/refresh-token.entity';
       envFilePath: [join(process.cwd(), '.env')],
       isGlobal: true,
     }),
+    RedisModule.forRootAsync(),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {

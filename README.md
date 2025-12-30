@@ -19,28 +19,35 @@ pnpm install
 ### Environment Setup
 
 1. Copy `.env.example` to `.env` (already exists in repo)
-2. If port 5432 is already in use, change `POSTGRES_EXPOSED_PORT` in `.env`:
+2. If port 5432 or 6379 is already in use, update `.env`:
 
 ```bash
-# Example: Use port 5433 instead
+# Example: Use port 5433 for Postgres
 POSTGRES_EXPOSED_PORT=5433
 USERS_DB_PORT=5433
 AUTH_DB_PORT=5433
+
+# Example: Use port 6380 for Redis
+REDIS_EXPOSED_PORT=6380
+REDIS_URL=redis://localhost:6380
 ```
 
-### Start Database and Run Migrations
+### Start Services and Run Migrations
 
 ```bash
-# Complete setup (start DB + initialize + run migrations)
+# Complete setup (start DB + Redis + initialize + run migrations)
 pnpm db:setup
 
 # Or step by step:
-pnpm db:up              # Start database
+pnpm db:up              # Start Postgres and Redis
 pnpm db:init            # Initialize databases (users_db, auth_db)
 pnpm migrate:run        # Run all migrations
 ```
 
-The database will be exposed on the port specified by `POSTGRES_EXPOSED_PORT` (default: 5432).
+Services will be exposed on the ports specified in `.env`:
+
+- Postgres: `POSTGRES_EXPOSED_PORT` (default: 5432)
+- Redis: `REDIS_EXPOSED_PORT` (default: 6379)
 
 Verify database is running:
 
@@ -174,10 +181,15 @@ apps/
   api-gateway/         - HTTP API Gateway
   users-service/       - Users microservice with Postgres
   auth-service/        - Auth microservice with Postgres
+libs/
+  contracts/           - Shared types and DTOs
+  common/              - Shared helpers and configs
+  redis/               - Redis integration module
 docker/
   init-db.sh          - Database initialization script
 docs/
   db.md               - Database documentation
+  redis.md            - Redis documentation
 ```
 
 ## Environment Variables
@@ -197,6 +209,11 @@ See `.env.example` and `.env` for configuration:
 - `USERS_DB_*` - Users service database connection
 - `AUTH_DB_*` - Auth service database connection
 
+**Redis Configuration:**
+
+- `REDIS_EXPOSED_PORT` - Docker Redis port (default: 6379)
+- `REDIS_URL` - Redis connection URL (default: redis://localhost:6379)
+
 ## Stage 1 - Complete ✅
 
 - Nx workspace with pnpm
@@ -213,3 +230,4 @@ See `.env.example` and `.env` for configuration:
 ## Additional Documentation
 
 - [Database Setup](docs/db.md)
+- [Redis Integration](docs/redis.md)

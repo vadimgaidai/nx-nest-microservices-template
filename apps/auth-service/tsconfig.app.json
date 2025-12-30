@@ -5,7 +5,8 @@
     "baseUrl": ".",
     "paths": {
       "@nx-microservices/contracts": ["../../libs/contracts/src/index.ts"],
-      "@nx-microservices/common": ["../../libs/common/src/index.ts"]
+      "@nx-microservices/common": ["../../libs/common/src/index.ts"],
+      "@nx-microservices/redis": ["../../libs/redis/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"]
