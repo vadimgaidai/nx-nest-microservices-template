@@ -1,0 +1,2 @@
+export const USER_REDIS_KEYS = {};
+export const AUTH_REDIS_KEYS = {};

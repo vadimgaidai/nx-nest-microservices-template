@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'node:path';
 import { RedisModule } from '@nx-microservices/redis';
+import { RabbitmqModule } from '@nx-microservices/rabbitmq';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { User } from '../entities/user.entity';
@@ -14,6 +15,7 @@ import { User } from '../entities/user.entity';
       isGlobal: true,
     }),
     RedisModule.forRootAsync(),
+    RabbitmqModule.forRootAsync(),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {

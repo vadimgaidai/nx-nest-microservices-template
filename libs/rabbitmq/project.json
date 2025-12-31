@@ -1,0 +1,9 @@
+{
+  "name": "rabbitmq",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/rabbitmq/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project rabbitmq --web",
+  "targets": {}
+}

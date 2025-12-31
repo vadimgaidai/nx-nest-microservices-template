@@ -1,8 +1,55 @@
 # Database Setup
 
-## Local Development
+## Local Development: Step by Step
 
-### Environment Configuration
+Database initialization in this project is done manually in three steps:
+
+```bash
+# 1. Start Docker containers (Postgres, Redis, RabbitMQ)
+pnpm db:up
+
+# 2. Initialize databases for services (users_db, auth_db)
+pnpm db:init
+
+# 3. Apply migrations for all services
+pnpm migrate:run
+```
+
+**Or run all steps at once:**
+
+```bash
+pnpm db:setup
+```
+
+### Why db:init Exists Separately
+
+Docker Compose supports auto-running scripts via `docker-entrypoint-initdb.d`, but we run db:init manually because:
+
+1. **Healthcheck timing**: Postgres container is marked as "healthy" before init scripts complete, which can cause race conditions when starting services.
+2. **Developer experience**: Explicit `pnpm db:init` step gives control over when databases are created.
+3. **Idempotent by design**: The `docker/init-db.sh` script can be run multiple times - it does not recreate existing databases.
+
+### Port Conflicts
+
+If port 5432 is already in use on your host, change `POSTGRES_EXPOSED_PORT` in `.env`:
+
+```bash
+# Example: use port 5433
+POSTGRES_EXPOSED_PORT=5433
+
+# Update connection ports for all services
+USERS_DB_PORT=5433
+AUTH_DB_PORT=5433
+```
+
+After changing ports, restart containers:
+
+```bash
+pnpm db:down
+pnpm db:up
+```
+
+## Environment Configuration
 
 Copy `.env.example` to `.env` (if not already present) and configure:
 
@@ -15,7 +62,7 @@ USERS_DB_PORT=5432
 AUTH_DB_PORT=5432
 ```
 
-### Start Database
+## Start Database
 
 ```bash
 docker compose up -d
@@ -27,12 +74,12 @@ The docker-compose setup will:
 - Auto-create service databases based on `*_DB_NAME` env vars (idempotent)
 - No tables are created - use migrations instead
 
-### Initialize Service Databases
+## Initialize Service Databases
 
 The `docker/init-db.sh` script automatically creates databases for all services by:
 
 1. Reading all environment variables matching `*_DB_NAME` from `.env`
-2. Creating each database if it doesn't exist (idempotent)
+2. Creating each database if it does not exist (idempotent)
 
 **Current databases:** `users_db`, `auth_db`
 
@@ -42,7 +89,7 @@ The `docker/init-db.sh` script automatically creates databases for all services 
 2. Run `pnpm db:init` or restart containers
 3. No script changes needed
 
-### Check Status
+## Check Status
 
 ```bash
 docker compose ps
@@ -50,13 +97,13 @@ docker compose ps
 
 Expected output: postgres container is healthy
 
-### Stop Database
+## Stop Database
 
 ```bash
 docker compose down
 ```
 
-### Reset Database (WARNING: destroys all data)
+## Reset Database (WARNING: destroys all data)
 
 ```bash
 docker compose down -v
@@ -78,31 +125,31 @@ All databases matching `*_DB_NAME` in `.env` are created automatically on first 
 
 ```bash
 # Generate migration
-nx run users-service:migration:generate --name=MigrationName
+pnpm nx run users-service:migration:generate --name=MigrationName
 
 # Run migrations
-nx run users-service:migration:run
+pnpm nx run users-service:migration:run
 
 # Revert last migration
-nx run users-service:migration:revert
+pnpm nx run users-service:migration:revert
 ```
 
 ### Auth Service
 
 ```bash
 # Generate migration
-nx run auth-service:migration:generate --name=MigrationName
+pnpm nx run auth-service:migration:generate --name=MigrationName
 
 # Run migrations
-nx run auth-service:migration:run
+pnpm nx run auth-service:migration:run
 
 # Revert last migration
-nx run auth-service:migration:revert
+pnpm nx run auth-service:migration:revert
 ```
 
 ## Convenience Scripts
 
-For better developer UX, the root `package.json` provides convenient aliases:
+For better developer experience, the root `package.json` provides convenient aliases:
 
 ### Database Management
 
