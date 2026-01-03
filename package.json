@@ -28,13 +28,17 @@
     "migrate:auth:run": "pnpm nx run auth-service:migration:run",
     "migrate:auth:revert": "pnpm nx run auth-service:migration:revert",
     "migrate:auth:generate": "pnpm nx run auth-service:migration:generate",
-    "typeorm:cli": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js"
+    "typeorm:cli": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
+    "commitlint": "commitlint --edit",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "vadimgaidai",
   "license": "ISC",
   "packageManager": "pnpm@10.14.0",
   "devDependencies": {
+    "@commitlint/cli": "^20.3.0",
+    "@commitlint/config-conventional": "^20.3.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     "@nx/eslint": "^22.3.3",
@@ -57,6 +61,8 @@
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "nx": "^22.3.3",
     "prettier": "^3.7.4",
     "ts-node": "^10.9.2",
