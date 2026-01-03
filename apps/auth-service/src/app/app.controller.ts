@@ -1,5 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
+
 import { DEFAULT_PAGE } from '@nx-microservices/common';
+
 import { AppService } from './app.service';
 
 @Controller()

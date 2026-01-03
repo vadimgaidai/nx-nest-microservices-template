@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
+
 import { AUTH_EVENTS_QUEUE, USER_EVENTS_KEYS } from '@nx-microservices/common';
 import { IRabbitEventEnvelope } from '@nx-microservices/rabbitmq';
 

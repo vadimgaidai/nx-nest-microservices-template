@@ -1,8 +1,9 @@
 import { Controller, Get, Post } from '@nestjs/common';
-import { type ApiResponse } from '@nx-microservices/contracts';
-import { RabbitmqPublisher } from '@nx-microservices/rabbitmq';
-import { AppService } from './app.service';
+
 import { USER_EVENTS_KEYS } from '@nx-microservices/common';
+import { RabbitmqPublisher } from '@nx-microservices/rabbitmq';
+
+import { AppService } from './app.service';
 
 @Controller()
 export class AppController {
@@ -13,8 +14,6 @@ export class AppController {
 
   @Get()
   getData() {
-    // ApiResponse type available for future use
-    type _Proof = ApiResponse<{ message: string }>;
     return this.appService.getData();
   }
 

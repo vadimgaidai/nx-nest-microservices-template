@@ -1,12 +1,14 @@
+import { join } from 'node:path';
+
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { join } from 'node:path';
-import { RedisModule } from '@nx-microservices/redis';
+
 import { RabbitmqModule } from '@nx-microservices/rabbitmq';
+import { RedisModule } from '@nx-microservices/redis';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { RefreshToken } from '../entities/refresh-token.entity';
 import { EventsConsumer } from './events.consumer';
 
 @Module({
@@ -40,7 +42,7 @@ import { EventsConsumer } from './events.consumer';
         };
       },
     }),
-    TypeOrmModule.forFeature([RefreshToken]),
+    TypeOrmModule.forFeature([]),
   ],
   controllers: [AppController],
   providers: [AppService, EventsConsumer],

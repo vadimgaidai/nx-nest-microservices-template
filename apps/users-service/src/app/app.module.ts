@@ -1,9 +1,12 @@
+import { join } from 'node:path';
+
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { join } from 'node:path';
-import { RedisModule } from '@nx-microservices/redis';
+
 import { RabbitmqModule } from '@nx-microservices/rabbitmq';
+import { RedisModule } from '@nx-microservices/redis';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { User } from '../entities/user.entity';
