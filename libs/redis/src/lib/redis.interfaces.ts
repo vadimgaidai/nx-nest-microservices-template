@@ -1,5 +1,7 @@
 import { InjectionToken, ModuleMetadata } from '@nestjs/common';
+
 import { RedisOptions, ClusterOptions } from 'ioredis';
+
 import { REDIS_MODE } from './redis.constants';
 
 export type TRedisMode = (typeof REDIS_MODE)[keyof typeof REDIS_MODE];

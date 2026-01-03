@@ -1,4 +1,5 @@
 import { InjectionToken, ModuleMetadata } from '@nestjs/common';
+
 import { RABBITMQ_EXCHANGE_TYPE } from './rabbitmq.constants';
 
 export type TRabbitExchangeType = typeof RABBITMQ_EXCHANGE_TYPE;

@@ -1,9 +1,11 @@
 import { DynamicModule, Module, OnModuleDestroy, Inject, Injectable } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+
 import Redis, { Cluster, RedisOptions } from 'ioredis';
+
 import { REDIS_CLIENT, REDIS_MODE, REDIS_MODULE_CLEANUP } from './redis.constants';
-import { RedisService } from './redis.service';
 import { IRedisModuleAsyncOptions, TRedisModuleOptions } from './redis.interfaces';
+import { RedisService } from './redis.service';
 
 @Injectable()
 class RedisModuleCleanup implements OnModuleDestroy {
@@ -100,7 +102,7 @@ export class RedisModule {
   private static buildRedisOptions(url?: string, userOptions?: RedisOptions): RedisOptions {
     const options: RedisOptions = { ...userOptions };
 
-    if (url && url.startsWith('rediss://')) {
+    if (url?.startsWith('rediss://')) {
       if (!options.tls) {
         const urlObj = new URL(url);
         options.tls = { servername: urlObj.hostname };

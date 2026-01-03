@@ -1,9 +1,11 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+
 import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
+
 import { EVENTS_EXCHANGE } from './rabbitmq.constants';
-import { RabbitmqPublisher } from './rabbitmq.publisher';
 import { IRabbitModuleAsyncOptions, IRabbitModuleOptions } from './rabbitmq.interfaces';
+import { RabbitmqPublisher } from './rabbitmq.publisher';
 
 @Module({})
 export class RabbitmqModule {

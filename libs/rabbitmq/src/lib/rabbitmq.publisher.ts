@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
+
 import { EVENTS_EXCHANGE } from './rabbitmq.constants';
 import { IRabbitEventEnvelope } from './rabbitmq.interfaces';
 
