@@ -121,31 +121,33 @@ All databases matching `*_DB_NAME` in `.env` are created automatically on first 
 
 ## Running Migrations
 
-### Users Service
+### All Services
 
 ```bash
-# Generate migration
-pnpm nx run users-service:migration:generate --name=MigrationName
+# Run migrations for all services (automatically discovers services with migration:run target)
+pnpm migrate:run
 
-# Run migrations
-pnpm nx run users-service:migration:run
-
-# Revert last migration
-pnpm nx run users-service:migration:revert
+# Revert migrations for all services
+pnpm migrate:revert
 ```
 
-### Auth Service
+### Individual Services
+
+You can run migrations for a specific service:
 
 ```bash
-# Generate migration
+# Users Service
+pnpm nx run users-service:migration:generate --name=MigrationName
+pnpm nx run users-service:migration:run
+pnpm nx run users-service:migration:revert
+
+# Auth Service
 pnpm nx run auth-service:migration:generate --name=MigrationName
-
-# Run migrations
 pnpm nx run auth-service:migration:run
-
-# Revert last migration
 pnpm nx run auth-service:migration:revert
 ```
+
+**Adding a new service:** When you create a new service with migrations, add the `migration:run`, `migration:revert`, and `migration:generate` targets to its `project.json`. The `migrate:run` and `migrate:revert` commands will automatically include the new service.
 
 ## Convenience Scripts
 
@@ -182,22 +184,26 @@ pnpm dev:auth
 ### Migrations
 
 ```bash
+# Run migrations for all services (automatically finds all services with migration:run target)
+pnpm migrate:run
+
+# Revert migrations for all services
+pnpm migrate:revert
+
 # Run migrations for specific service
 pnpm migrate:users:run
 pnpm migrate:auth:run
 
-# Run all migrations (users then auth)
-pnpm migrate:run
-
-# Revert migrations
+# Revert migrations for specific service
 pnpm migrate:users:revert
 pnpm migrate:auth:revert
-pnpm migrate:revert  # Reverts auth then users
 
 # Generate migrations (requires -- to pass args)
 pnpm migrate:users:generate -- --name=InitUsers
 pnpm migrate:auth:generate -- --name=InitAuth
 ```
+
+**Note:** The `migrate:run` and `migrate:revert` commands automatically discover and run migrations for all services that have the `migration:run` target configured. When you add a new service with migrations, you don't need to update these commands - they will automatically include the new service.
 
 **Note:** When using `generate` scripts, you must pass the `--name` argument with `--` separator:
 
