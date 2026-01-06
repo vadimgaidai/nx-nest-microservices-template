@@ -1,9 +1,19 @@
-import { DynamicModule, Module, OnModuleDestroy, Inject, Injectable } from '@nestjs/common';
+import { DynamicModule, Module, OnModuleDestroy, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TerminusModule } from '@nestjs/terminus';
 
 import Redis, { Cluster, RedisOptions } from 'ioredis';
 
-import { REDIS_CLIENT, REDIS_MODE, REDIS_MODULE_CLEANUP } from './redis.constants';
+import { RedisHealthIndicator } from './redis-health.indicator';
+import {
+  REDIS_CLIENT,
+  REDIS_MODE,
+  REDIS_MODULE_CLEANUP,
+  DEFAULT_REDIS_PORT,
+  DEFAULT_MAX_RETRIES,
+  DEFAULT_MAX_DELAY_MS,
+  DEFAULT_MAX_RETRIES_PER_REQUEST,
+} from './redis.constants';
 import { IRedisModuleAsyncOptions, TRedisModuleOptions } from './redis.interfaces';
 import { RedisService } from './redis.service';
 
@@ -45,7 +55,7 @@ export class RedisModule {
 
         return RedisModule.createClient(config);
       },
-      inject: options?.inject || [ConfigService],
+      inject: options?.inject ?? [ConfigService],
     };
 
     const cleanupProvider = {
@@ -55,13 +65,16 @@ export class RedisModule {
 
     return {
       module: RedisModule,
-      imports: options?.imports || [ConfigModule],
-      providers: [redisProvider, cleanupProvider, RedisService],
-      exports: [REDIS_CLIENT, RedisService],
+      imports: [TerminusModule, ...(options?.imports ?? [ConfigModule])],
+      providers: [redisProvider, cleanupProvider, RedisService, RedisHealthIndicator],
+      exports: [REDIS_CLIENT, RedisService, RedisHealthIndicator],
     };
   }
 
   private static createClient(config: TRedisModuleOptions): Redis | Cluster {
+    const logger = new Logger('RedisModule');
+    let client: Redis | Cluster;
+
     if (config.mode === REDIS_MODE.CLUSTER) {
       if (!config.clusterNodes || config.clusterNodes.length === 0) {
         throw new Error(
@@ -72,11 +85,11 @@ export class RedisModule {
       const nodes = config.clusterNodes.map((node) => {
         const parts = node.split(':');
         const host = parts[0];
-        const port = parts[1] ? parseInt(parts[1], 10) : 6379;
+        const port = parts[1] ? parseInt(parts[1], 10) : DEFAULT_REDIS_PORT;
 
-        if (!host || isNaN(port) || port <= 0 || port > 65535) {
+        if (!host || isNaN(port) || port <= 0) {
           throw new Error(
-            `Invalid cluster node format: ${node}. Expected format: host:port or host (defaults to port 6379)`,
+            `Invalid cluster node format: ${node}. Expected format: host:port or host (defaults to port ${DEFAULT_REDIS_PORT})`,
           );
         }
 
@@ -85,18 +98,44 @@ export class RedisModule {
 
       const redisOptions = RedisModule.buildRedisOptions(undefined, config.redisOptions);
 
-      return new Cluster(nodes, {
+      client = new Cluster(nodes, {
         ...config.clusterOptions,
         redisOptions,
       });
+    } else {
+      if (!config.url) {
+        throw new Error('url is required for single mode.');
+      }
+
+      const redisOptions = RedisModule.buildRedisOptions(config.url, config.redisOptions);
+      client = new Redis(config.url, redisOptions);
     }
 
-    if (!config.url) {
-      throw new Error('url is required for single mode.');
-    }
+    client.on('error', (err) => {
+      logger.error(`Redis connection error: ${err.message}`);
+    });
 
-    const redisOptions = RedisModule.buildRedisOptions(config.url, config.redisOptions);
-    return new Redis(config.url, redisOptions);
+    client.on('connect', () => {
+      logger.log('Redis connected');
+    });
+
+    client.on('ready', () => {
+      logger.log('Redis ready to accept commands');
+    });
+
+    client.on('reconnecting', (delay?: number) => {
+      logger.warn(`Redis reconnecting${delay ? ` in ${delay}ms` : ''}...`);
+    });
+
+    client.on('close', () => {
+      logger.warn('Redis connection closed');
+    });
+
+    client.on('end', () => {
+      logger.warn('Redis connection ended');
+    });
+
+    return client;
   }
 
   private static buildRedisOptions(url?: string, userOptions?: RedisOptions): RedisOptions {
@@ -109,13 +148,14 @@ export class RedisModule {
       }
     }
 
-    if (!options.retryStrategy) {
-      options.retryStrategy = (times: number): number => Math.min(times * 50, 2000);
-    }
+    options.retryStrategy ??= (times: number): number | null => {
+      if (times > DEFAULT_MAX_RETRIES) {
+        return null;
+      }
+      return Math.min(100 * Math.pow(2, times - 1), DEFAULT_MAX_DELAY_MS);
+    };
 
-    if (options.maxRetriesPerRequest === undefined) {
-      options.maxRetriesPerRequest = null;
-    }
+    options.maxRetriesPerRequest ??= DEFAULT_MAX_RETRIES_PER_REQUEST;
 
     return options;
   }

@@ -1,4 +1,4 @@
 {
-  "*.ts": ["nx affected:lint --files"],
+  "*.{ts,js}": ["eslint --fix"],
   "*.{json,js,ts}": "prettier --write --ignore-unknown"
 }
