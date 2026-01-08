@@ -1,83 +1,172 @@
 # RabbitMQ Integration
 
-## Purpose
+## Overview
 
-RabbitMQ is used for event-driven architecture and background job processing in this platform.
+RabbitMQ is used for event-driven architecture and async processing. The RabbitMQ module is located in `libs/rabbitmq/` and provides publishing and consuming capabilities.
 
-**What RabbitMQ IS used for:**
+## Module Location
 
-- Publishing domain events (e.g., "user created", "order placed")
-- Async background job processing with retries
-- Dead Letter Queue (DLQ) handling for failed messages
-- Fan-out patterns (one event to multiple consumers)
+- **Module**: `libs/rabbitmq/src/lib/rabbitmq.module.ts`
+- **Publisher**: `libs/rabbitmq/src/lib/rabbitmq.publisher.ts`
+- **Helpers**: `libs/rabbitmq/src/lib/rabbitmq.helpers.ts`
+- **Interfaces**: `libs/rabbitmq/src/lib/rabbitmq.interfaces.ts`
+- **Constants**: `libs/rabbitmq/src/lib/rabbitmq.constants.ts`
 
-**What RabbitMQ is NOT used for:**
+## Event Type Constants
 
-- RPC-style request/response communication
-- Replacing HTTP orchestration in api-gateway
-- Synchronous service-to-service calls
+**Location**: `libs/common/src/constants/rabbitmq.ts`
 
-## Architecture
+```typescript
+export const USER_EVENTS_KEYS = {
+  USER_CREATED: 'user.created.v1',
+};
 
-```
-HTTP Client
-    |
-api-gateway (HTTP orchestration)
-    | HTTP
-users-service
-    | publishes event to RabbitMQ
-RabbitMQ (events exchange)
-    | routes to queues
-auth-service (consumer logs event)
+export const AUTH_EVENTS_KEYS = {};
+
+export const AUTH_EVENTS_QUEUE = 'auth-service.events';
+export const USERS_EVENTS_QUEUE = 'users-service.events';
 ```
 
-## Local Development
+**Usage:**
 
-### Start RabbitMQ
+```typescript
+import { USER_EVENTS_KEYS, AUTH_EVENTS_QUEUE } from '@nx-microservices/common';
+import { createSubscribeConfig } from '@nx-microservices/rabbitmq';
 
-```bash
-docker compose up -d
+// Publishing
+await publisher.publishEvent({
+  type: USER_EVENTS_KEYS.USER_CREATED,
+  // ...
+});
+
+// Consuming (with helper)
+@RabbitSubscribe(createSubscribeConfig(USER_EVENTS_KEYS.USER_CREATED, AUTH_EVENTS_QUEUE))
 ```
 
-This starts Postgres, Redis, and RabbitMQ.
-
-Verify RabbitMQ is running:
-
-```bash
-docker compose ps rabbitmq
-```
-
-### Management UI
-
-Access at: http://localhost:15672
-
-**Default credentials:**
-
-- Username: `guest`
-- Password: `guest`
+## Configuration
 
 ### Environment Variables
 
-Required in `.env`:
-
 ```bash
-RABBITMQ_AMQP_PORT=5672
-RABBITMQ_MANAGEMENT_PORT=15672
-RABBITMQ_USER=guest
-RABBITMQ_PASSWORD=guest
-RABBITMQ_HOST=localhost
-RABBITMQ_VHOST=/
 RABBITMQ_URL=amqp://guest:guest@localhost:5672
 ```
 
-## Event Contracts
+For production with TLS:
 
-All events use a standardized envelope (defined in `libs/rabbitmq`):
+```bash
+RABBITMQ_URL=amqps://username:password@b-xxx.mq.us-east-1.amazonaws.com:5671
+```
+
+### Module Setup
+
+```typescript
+import { RabbitmqModule } from '@nx-microservices/rabbitmq';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    RabbitmqModule.forRootAsync(), // Uses RABBITMQ_URL from ConfigService
+  ],
+})
+export class AppModule {}
+```
+
+## Publishing Events
+
+```typescript
+import { RabbitmqPublisher } from '@nx-microservices/rabbitmq';
+import { IRabbitEventEnvelope } from '@nx-microservices/rabbitmq';
+import { USER_EVENTS_KEYS } from '@nx-microservices/common';
+
+@Injectable()
+export class UserService {
+  constructor(private readonly publisher: RabbitmqPublisher) {}
+
+  async createUser(userData: any) {
+    // ... create user logic ...
+
+    const envelope: IRabbitEventEnvelope<{ userId: string; email: string }> = {
+      id: crypto.randomUUID(),
+      type: USER_EVENTS_KEYS.USER_CREATED,
+      version: 1,
+      occurredAt: new Date().toISOString(),
+      correlationId: crypto.randomUUID(),
+      payload: { userId: user.id, email: user.email },
+    };
+
+    await this.publisher.publishEvent(envelope);
+  }
+}
+```
+
+## Consuming Events
+
+### Using createSubscribeConfig Helper (Recommended)
+
+The `createSubscribeConfig` helper automatically configures Dead Letter Queue (DLQ) and durable queues:
+
+```typescript
+import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
+import { IRabbitEventEnvelope, createSubscribeConfig } from '@nx-microservices/rabbitmq';
+import { AUTH_EVENTS_QUEUE, USER_EVENTS_KEYS } from '@nx-microservices/common';
+
+@Injectable()
+export class EventsConsumer {
+  @RabbitSubscribe(createSubscribeConfig(USER_EVENTS_KEYS.USER_CREATED, AUTH_EVENTS_QUEUE))
+  async handleUserCreated(
+    envelope: IRabbitEventEnvelope<{ userId: string; email: string }>,
+  ): Promise<void> {
+    try {
+      // Process event
+      console.log('User created:', envelope.payload);
+    } catch (error) {
+      // Re-throw to trigger NACK and send to DLQ after retries
+      throw error;
+    }
+  }
+}
+```
+
+**What `createSubscribeConfig` does:**
+
+- Configures durable queue
+- Sets up Dead Letter Exchange (DLQ)
+- Sets DLQ routing key pattern: `dlq.{queue-name}.{routing-key}`
+- Returns proper configuration for `@RabbitSubscribe`
+
+### Manual Configuration (Alternative)
+
+If you need custom queue options:
+
+```typescript
+@RabbitSubscribe({
+  routingKey: USER_EVENTS_KEYS.USER_CREATED,
+  queue: AUTH_EVENTS_QUEUE,
+  queueOptions: {
+    durable: true,
+    deadLetterExchange: 'dlx.events',
+    deadLetterRoutingKey: 'dlq.auth-service.events.user.created.v1',
+  },
+})
+async handleUserCreated(envelope: IRabbitEventEnvelope<...>) {
+  // ...
+}
+```
+
+**Adding consumers:**
+
+1. Create `*.consumer.ts` file in your service
+2. Add `@Injectable()` decorator
+3. Use `@RabbitSubscribe` with `createSubscribeConfig` helper
+4. Register in module `providers[]`
+5. Always wrap handler logic in try-catch and re-throw errors for DLQ
+
+## Event Envelope Structure
 
 ```typescript
 interface IRabbitEventEnvelope<T> {
   id: string; // UUID
-  type: string; // e.g., "user.created.v1"
+  type: string; // Event type from constants
   version: number; // Schema version
   occurredAt: string; // ISO timestamp
   correlationId?: string; // Optional correlation ID
@@ -85,196 +174,31 @@ interface IRabbitEventEnvelope<T> {
 }
 ```
 
-Event type constants are defined in `libs/common/src/constants/rabbitmq.ts` (e.g., `USER_EVENTS_KEYS`).
-
-## Demo: Test Publish/Consume
-
-This demo shows how users-service publishes events to RabbitMQ, and auth-service processes them.
-
-### 1. Start Services
-
-```bash
-# Terminal 1: Start infrastructure (Postgres, Redis, RabbitMQ)
-docker compose up -d
-
-# Terminal 2: Start auth-service (consumer)
-pnpm dev:auth
-
-# Terminal 3: Start users-service (publisher)
-pnpm dev:users
-```
-
-### 2. Publish Demo Event
-
-Demo endpoint is in `apps/users-service/src/app/app.controller.ts` and available at:
-
-```bash
-curl -X POST http://localhost:3001/api/demo-publish
-```
-
-**Expected response:**
-
-```json
-{
-  "success": true,
-  "message": "Event published"
-}
-```
-
-### 3. Verify
-
-- **Check auth-service terminal** - should see:
-  ```
-  [auth-service] Received USERS_USER_CREATED_V1 event: { id: '...', type: 'user.created.v1', ... }
-  ```
-- **Open RabbitMQ Management UI** at http://localhost:15672 (guest/guest):
-  - Go to Exchanges → `events` → see message rate
-  - Go to Queues → `auth-service.events` → see messages
-  - Go to Queues → `auth-service.events` → Get messages to inspect
-
-### Where Consumers Live
-
-Consumers are located inside services:
-
-- **auth-service**: `apps/auth-service/src/app/events.consumer.ts`
-  - Listens to `user.created.v1`
-  - Logs event to console (in production this would have business logic)
-
-**Adding new consumers:**
-
-1. Create file `*.consumer.ts` in the appropriate service
-2. Add `@Injectable()` decorator
-3. Use `@RabbitSubscribe` to subscribe to events
-4. Register in `providers[]` of the module
-
-## Publishing Events
-
-Example from `users-service`:
-
-```typescript
-import { RabbitmqPublisher } from '@nx-microservices/rabbitmq';
-import { IRabbitEventEnvelope } from '@nx-microservices/rabbitmq';
-import { USER_EVENTS_KEYS } from '@nx-microservices/common';
-
-const envelope: IRabbitEventEnvelope<{
-  userId: string;
-  email: string;
-}> = {
-  id: crypto.randomUUID(),
-  type: USER_EVENTS_KEYS.USER_CREATED,
-  version: 1,
-  occurredAt: new Date().toISOString(),
-  correlationId: crypto.randomUUID(),
-  payload: { userId: '123', email: 'user@example.com' },
-};
-
-await this.rabbitmqPublisher.publishEvent(envelope);
-```
-
-## Consuming Events
-
-Example from `auth-service`:
-
-```typescript
-import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
-import { IRabbitEventEnvelope } from '@nx-microservices/rabbitmq';
-import { AUTH_EVENTS_QUEUE, USER_EVENTS_KEYS } from '@nx-microservices/common';
-
-@RabbitSubscribe({
-  routingKey: USER_EVENTS_KEYS.USER_CREATED,
-  queue: AUTH_EVENTS_QUEUE,
-  queueOptions: {
-    durable: true,
-  },
-})
-async handleUserCreated(
-  envelope: IRabbitEventEnvelope<{
-    userId: string;
-    email: string;
-  }>,
-) {
-  console.log('User created:', envelope.payload);
-  // Process event
-}
-```
-
-## Error Handling and DLQ
-
-**Current behavior:**
-
-- On consumer error: message is nack'd without requeue
-- This prevents infinite retry loops
-- Messages go to Dead Letter Queue if configured, otherwise dropped
-
-**To configure DLQ (optional):**
-
-```typescript
-@RabbitSubscribe({
-  routingKey: USER_EVENTS_KEYS.USER_CREATED,
-  queue: AUTH_EVENTS_QUEUE,
-  queueOptions: {
-    durable: true,
-    deadLetterExchange: 'dlx',
-    deadLetterRoutingKey: 'auth-service.events.dlq',
-  },
-})
-```
-
 ## Best Practices
 
 1. **Event Naming**: Use `<domain>.<event>.<version>` pattern
 2. **Versioning**: Increment version for breaking changes
-3. **Idempotency**: Consumers should handle duplicate events gracefully
-4. **Correlation IDs**: Use for distributed tracing
-5. **Error Logging**: Always log errors before nack
-6. **Schema Evolution**: Add optional fields, never remove required fields
+3. **Idempotency**: Consumers should handle duplicate events
+4. **Error Handling**: Always wrap consumer logic in try-catch
+5. **Schema Evolution**: Add optional fields, never remove required fields
+
+## Management UI
+
+Access at: http://localhost:15672 (guest/guest)
+
+- View exchanges, queues, and bindings
+- Monitor message rates
+- Inspect messages
 
 ## Troubleshooting
 
-**Connection refused:**
+**Connection errors:**
 
-```bash
-docker compose logs rabbitmq
-docker compose restart rabbitmq
-```
+- Verify `RABBITMQ_URL` is set in `.env`
+- Check RabbitMQ is running: `docker compose ps rabbitmq`
 
 **Messages not consumed:**
 
-- Check queue bindings in management UI (Exchanges → events → Bindings)
 - Verify routing key matches between publisher and consumer
-- Check consumer is running (check logs)
-
-**Port conflicts:**
-
-Change ports in `.env`:
-
-```bash
-RABBITMQ_AMQP_PORT=5673
-RABBITMQ_MANAGEMENT_PORT=15673
-RABBITMQ_URL=amqp://guest:guest@localhost:5673
-```
-
-Restart:
-
-```bash
-docker compose down
-docker compose up -d
-```
-
-## Production (AWS)
-
-**Amazon MQ for RabbitMQ:**
-
-```bash
-RABBITMQ_URL=amqps://username:password@b-xxx.mq.us-east-1.amazonaws.com:5671
-```
-
-Note: Use `amqps://` for TLS.
-
-**CloudAMQP:**
-
-```bash
-RABBITMQ_URL=amqps://user:pass@your-instance.cloudamqp.com/vhost
-```
-
-The module handles TLS automatically when using `amqps://` scheme.
+- Check queue bindings in management UI
+- Ensure consumer is running and registered in module

@@ -1,6 +1,37 @@
 # NX Nest Microservices
 
-Microservices architecture built with Nx monorepo and NestJS.
+Microservices architecture template built with Nx monorepo and NestJS.
+
+## Architecture
+
+This template implements a hybrid microservices architecture:
+
+### API Gateway Orchestration Pattern
+
+The API Gateway acts as an orchestrator for synchronous operations:
+
+- All HTTP requests from clients go through the API Gateway
+- API Gateway orchestrates calls to microservices via HTTP
+- Used for READ and WRITE operations requiring immediate responses
+
+### Event-Driven Architecture
+
+Services communicate asynchronously via RabbitMQ:
+
+- Services publish domain events to RabbitMQ
+- Other services consume events they're interested in
+- Used for async processing, data synchronization, and background jobs
+- Enables eventual consistency between services
+
+**Architecture Flow:**
+
+```
+HTTP Client
+    |
+API Gateway (orchestrator) → HTTP → Microservice → Publishes Event → RabbitMQ
+                                                                          ↓
+                                                                    Consumer Service
+```
 
 ## Quick Start
 
@@ -18,7 +49,7 @@ Microservices architecture built with Nx monorepo and NestJS.
 pnpm install
 ```
 
-2. Start infrastructure and initialize databases:
+2. Setup database:
 
 ```bash
 pnpm db:setup
@@ -36,18 +67,12 @@ This command does three things:
 # Terminal 1: API Gateway
 pnpm dev:gateway
 
-# Terminal 2: Users Service
+# Terminal 2: Microservice 1
 pnpm dev:users
 
-# Terminal 3: Auth Service
+# Terminal 3: Microservice 2
 pnpm dev:auth
 ```
-
-### Service Endpoints
-
-- API Gateway: http://localhost:3000/api
-- Users Service: http://localhost:3001/api
-- Auth Service: http://localhost:3002/api
 
 ### Management UIs
 
@@ -87,20 +112,18 @@ pnpm db:setup       # Complete setup: up + init + migrate
 ### Migration Management
 
 ```bash
-# Run migrations
-pnpm migrate:run              # All services
-pnpm migrate:users:run        # Users service only
-pnpm migrate:auth:run         # Auth service only
+# Run migrations for all services (automatically discovers services with migration:run target)
+pnpm migrate:run
 
-# Revert migrations
-pnpm migrate:revert           # All services (reverse order)
-pnpm migrate:users:revert     # Users service only
-pnpm migrate:auth:revert      # Auth service only
+# Revert migrations for all services
+pnpm migrate:revert
 
-# Generate migrations
+# Generate migration for specific service
 pnpm migrate:users:generate -- --name=MigrationName
 pnpm migrate:auth:generate -- --name=MigrationName
 ```
+
+**Note:** The `migrate:run` and `migrate:revert` commands automatically discover all services with `migration:run` target. When you add a new service with migrations, you don't need to update these commands.
 
 ### Development
 
@@ -113,9 +136,34 @@ pnpm dev:auth       # Start Auth Service
 ### Code Quality
 
 ```bash
+pnpm lint           # Lint all services and libraries
+pnpm lint:fix       # Fix linting issues automatically
 pnpm format:check   # Check code formatting
 pnpm format         # Fix code formatting
 ```
+
+### Git Hooks
+
+This project uses Husky for git hooks:
+
+- **pre-commit**: Runs lint-staged to lint and format only changed files
+- **commit-msg**: Validates commit messages using commitlint (Conventional Commits format)
+
+**Commit Message Format:**
+
+```
+<type>(<scope>): <subject>
+
+[optional body]
+
+[optional footer]
+```
+
+Examples:
+
+- `feat(users): add user creation endpoint`
+- `fix(auth): resolve token expiration issue`
+- `docs: update README with setup instructions`
 
 ## Environment Variables
 
@@ -130,12 +178,39 @@ Key variables:
 - `REDIS_URL` - Redis connection URL
 - `RABBITMQ_URL` - RabbitMQ connection URL
 
+## Shared Libraries
+
+### Constants
+
+Global constants are in `libs/common/src/constants/`:
+
+- **Redis keys**: `libs/common/src/constants/redis-keys.ts`
+  - Service-specific key prefixes: `USER_REDIS_KEYS`, `AUTH_REDIS_KEYS`, `GATEWAY_REDIS_KEYS`
+- **RabbitMQ events**: `libs/common/src/constants/rabbitmq.ts`
+  - Event type constants: `USER_EVENTS_KEYS`, `AUTH_EVENTS_KEYS`
+  - Queue names: `AUTH_EVENTS_QUEUE`, `USERS_EVENTS_QUEUE`
+
+### Configurations
+
+- **ESLint configs**: `libs/common/configs/eslint/`
+  - `base.js` - Base rules for all TypeScript files
+  - `nest.js` - NestJS-specific rules (import ordering, Prettier integration)
+- **TypeScript configs**: `libs/common/configs/tsconfig/`
+  - `base.json` - Base TypeScript configuration
+  - `nest.json` - NestJS-specific configuration
+  - `node.json` - Node.js-specific configuration
+
+### Integration Modules
+
+- **Redis**: `libs/redis/` - RedisModule with RedisService
+- **RabbitMQ**: `libs/rabbitmq/` - RabbitmqModule with RabbitmqPublisher
+
 ## Documentation
 
-- [Architecture](./docs/architecture.md) - System architecture and design decisions
-- [Database Setup](./docs/db.md) - Database setup and migration guide
-- [Redis Integration](./docs/redis.md) - How to use Redis in services
-- [RabbitMQ Integration](./docs/rabbitmq.md) - How to use RabbitMQ for events
+- [Architecture](./docs/architecture.md) - Architecture overview and communication patterns
+- [Database Setup](./docs/db.md) - Database setup and migrations
+- [Redis Integration](./docs/redis.md) - Redis module usage and configuration
+- [RabbitMQ Integration](./docs/rabbitmq.md) - RabbitMQ events and consumers
 
 ## Technology Stack
 
