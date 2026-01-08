@@ -3,7 +3,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
 
-import { EVENTS_EXCHANGE, RABBITMQ_EXCHANGE_TYPE } from './rabbitmq.constants';
+import {
+  EVENTS_EXCHANGE,
+  DEAD_LETTER_EXCHANGE,
+  RABBITMQ_EXCHANGE_TYPE,
+  DEFAULT_CONNECTION_TIMEOUT,
+  DEFAULT_PREFETCH_COUNT,
+} from './rabbitmq.constants';
 import { IRabbitModuleAsyncOptions, IRabbitModuleOptions } from './rabbitmq.interfaces';
 import { RabbitmqPublisher } from './rabbitmq.publisher';
 
@@ -51,7 +57,7 @@ export class RabbitmqModule {
             const factoryResult = configProvider.useFactory(...args);
             const config = await factoryResult;
             const exchange = config.exchange ?? EVENTS_EXCHANGE;
-            const prefetchCount = config.prefetchCount ?? 10;
+            const prefetchCount = config.prefetchCount ?? DEFAULT_PREFETCH_COUNT;
 
             return {
               uri: config.url,
@@ -63,10 +69,17 @@ export class RabbitmqModule {
                     durable: true,
                   },
                 },
+                {
+                  name: DEAD_LETTER_EXCHANGE,
+                  type: RABBITMQ_EXCHANGE_TYPE,
+                  options: {
+                    durable: true,
+                  },
+                },
               ],
               connectionInitOptions: {
                 wait: true,
-                timeout: 10000,
+                timeout: DEFAULT_CONNECTION_TIMEOUT,
               },
               prefetchCount,
             };
